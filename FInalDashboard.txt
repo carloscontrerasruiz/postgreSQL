@@ -1,0 +1,103 @@
+--COMON TABLE EXPRESIONS
+
+WITH RECURSIVE tabla_recursiva(i) AS (
+	VALUES(1)
+	UNION ALL
+	SELECT i+1 FROM tabla_recursiva WHERE i < 100
+) SELECT SUM(i) FROM tabla_recursiva;
+
+-- Final Dashboard
+
+--TOP 10 peliculas
+SELECT pl.pelicula_id as id,
+	pl.titulo,
+	COUNT(*) AS numero_rentas,
+	ROW_NUMBER() OVER(
+	ORDER BY COUNT(*) DESC
+	) AS lugar
+FROM rentas rt
+	INNER JOIN inventarios inv ON rt.inventario_id = inv.inventario_id
+	INNER JOIN peliculas pl ON inv.pelicula_id = pl.pelicula_id
+GROUP BY pl.pelicula_id
+ORDER BY numero_rentas DESC
+LIMIT 10;
+
+
+SELECT pl.pelicula_id,
+	tc.tipo_cambio_id,
+	tc.cambio_usd * pl.precio_renta AS precio_mxn
+FROM peliculas pl,
+	tipos_cambio tc
+WHERE tc.codigo = 'MXN';
+
+--CODE Trigger function
+BEGIN
+	INSERT INTO precio_peliculas_tipo_cambio(
+	pelicula_id,
+	tipo_cambio_id,
+	precio_tipo_cambio,
+	ultima_actualizacion
+	)
+	SELECT NEW.pelicula_id,
+		tipos_cambio.tipo_cambio_id,
+		tipos_cambio.cambio_usd * NEW.precio_renta AS precio_tipo_cambio,
+		CURRENT_TIMESTAMP
+	FROM tipos_cambio
+	WHERE tipos_cambio.codigo ='MXN';
+	RETURN NEW;
+END
+
+CREATE TRIGGER trigger_update_tipos_cambio
+	AFTER INSERT OR UPDATE
+	ON public.peliculas
+	FOR EACH ROW
+	EXECUTE PROCEDURE public.precio_peliculas_tipo_cambio();
+
+SELECT * FROM precio_peliculas_tipo_cambio;
+
+--PErcentiles
+SELECT pl.pelicula_id as id,
+	pl.titulo,
+	COUNT(*) AS numero_rentas,
+	ROW_NUMBER() OVER(
+	ORDER BY COUNT(*) DESC
+	) AS lugar,
+	PERCENT_RANK() OVER(
+	ORDER BY COUNT(*) ASC
+	) AS percentil
+FROM rentas rt
+	INNER JOIN inventarios inv ON rt.inventario_id = inv.inventario_id
+	INNER JOIN peliculas pl ON inv.pelicula_id = pl.pelicula_id
+GROUP BY pl.pelicula_id
+ORDER BY numero_rentas DESC;
+
+SELECT cd.ciudad_id,
+	cd.ciudad,
+	COUNT(*) AS rentas_por_ciudad
+FROM ciudades cd
+	INNER JOIN direcciones dir ON cd.ciudad_id = dir.ciudad_id
+	INNER JOIN tiendas td ON td.direccion_id = dir.direccion_id
+	INNER JOIN inventarios inv ON inv.tienda_id = td.tienda_id
+	INNER JOIN rentas ON inv.inventario_id = rentas.inventario_id
+GROUP BY cd.ciudad_id;
+
+--LINEA DE TIEMPO
+SELECT date_part('year', rentas.fecha_renta) AS anio,
+	date_part('month', rentas.fecha_renta) as mes,
+	peliculas.titulo,
+	COUNT(*) AS numero_rentas
+FROM rentas
+	INNER JOIN inventarios ON inventarios.inventario_id = rentas.inventario_id
+	INNER JOIN peliculas ON peliculas.pelicula_id = inventarios.pelicula_id
+GROUP BY anio, mes, peliculas.pelicula_id
+ORDER BY peliculas.titulo;
+
+SELECT date_part('year', rentas.fecha_renta) AS anio,
+	date_part('month', rentas.fecha_renta) as mes,
+	COUNT(*) AS numero_rentas
+FROM rentas
+	INNER JOIN inventarios ON inventarios.inventario_id = rentas.inventario_id
+GROUP BY anio, mes
+ORDER BY anio, mes;
+
+--TABLEAU es una herramienta para vizualizar queries de manera grafica

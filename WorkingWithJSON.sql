@@ -28,3 +28,11 @@ SELECT
 	info ->> 'items' as firstItem
 FROM ordenes
 WHERE info -> 'items' -> 0 ->> 'producto' = 'Refrescos';
+
+--COMON TABLE EXPRESIONS
+
+WITH RECURSIVE tabla_recursiva(i) AS (
+	VALUES(1)
+	UNION ALL
+	SELECT i+1 FROM tabla_recursiva WHERE i < 100
+) SELECT SUM(i) FROM tabla_recursiva;
